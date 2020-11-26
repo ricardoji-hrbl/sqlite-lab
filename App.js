@@ -19,6 +19,7 @@ import {
 import SQLite from 'react-native-sqlite-storage';
 import 'react-native-console-time-polyfill';
 import useData from './src/useData';
+import Select from './src/Select';
 
 // SQLite.enablePromise(true);
 
@@ -60,24 +61,24 @@ for (let i = 0; i < total; i++) {
 
 db.transaction((tx) => {
   console.time('sql done');
-  tx.executeSql('DROP TABLE addresses', [], successCB, errorCB);
-  tx.executeSql(
-    'CREATE TABLE IF NOT EXISTS addresses( ' +
-      'id INTEGER PRIMARY KEY NOT NULL, ' +
-      'state INTEGER NOT NULL, ' +
-      'city TEXT, ' +
-      'neighborhood TEXT, ' +
-      'zip TEXT ); ',
-    [],
-    successCB,
-    errorCB,
-  );
-  tx.executeSql(
-    `INSERT INTO Addresses (state, city, neighborhood, zip) VALUES ${values} ;`,
-    inserts,
-    successCB,
-    errorCB,
-  );
+  // tx.executeSql('DROP TABLE addresses', [], successCB, errorCB);
+  // tx.executeSql(
+  //   'CREATE TABLE IF NOT EXISTS addresses( ' +
+  //     'id INTEGER PRIMARY KEY NOT NULL, ' +
+  //     'state INTEGER NOT NULL, ' +
+  //     'city TEXT, ' +
+  //     'neighborhood TEXT, ' +
+  //     'zip TEXT ); ',
+  //   [],
+  //   successCB,
+  //   errorCB,
+  // );
+  // tx.executeSql(
+  //   `INSERT INTO Addresses (state, city, neighborhood, zip) VALUES ${values} ;`,
+  //   inserts,
+  //   successCB,
+  //   errorCB,
+  // );
   tx.executeSql('SELECT * FROM addresses', [], successCB, errorCB);
 });
 
@@ -137,6 +138,10 @@ const App: () => React$Node = () => {
       <StatusBar barStyle="dark-content" />
       <SafeAreaView styles={styles.container}>
         <Text>Downloading data {Math.round(percent * 100)}</Text>
+        <Select
+          data={[{key: 'key', value: 'value'}]}
+          onSelected={(val) => console.log(val)}
+        />
       </SafeAreaView>
     </>
   );
