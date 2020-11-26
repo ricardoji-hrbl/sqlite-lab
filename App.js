@@ -18,6 +18,7 @@ import {
 
 import SQLite from 'react-native-sqlite-storage';
 import 'react-native-console-time-polyfill';
+import useData from './src/useData';
 
 // SQLite.enablePromise(true);
 
@@ -26,9 +27,9 @@ const errorCB = (err) => {
 };
 
 const successCB = (tx, result) => {
+  console.timeEnd('sql done');
   console.log('SQL executed fine', result.rows.length);
-  const {rows} = result;
-  console.timeEnd('test');
+  // const {rows} = result;
   // for (let i = 0; i < rows.length; i++) {
   //   console.log(rows.item(i));
   // }
@@ -37,17 +38,6 @@ const successCB = (tx, result) => {
 const openCB = () => {
   console.log('Database OPENED');
 };
-
-const data = [
-  'state1',
-  'city1',
-  'neigh1',
-  'zip1',
-  'state2',
-  'city2,',
-  'neigh2',
-  'zip1',
-];
 
 const db = SQLite.openDatabase(
   {name: 'my.db', location: 'default'},
@@ -69,39 +59,95 @@ for (let i = 0; i < total; i++) {
 }
 
 db.transaction((tx) => {
-  console.time('test');
-  // tx.executeSql('DROP TABLE addresses', [], successCB, errorCB);
-  // tx.executeSql(
-  //   'CREATE TABLE IF NOT EXISTS addresses( ' +
-  //     'id INTEGER PRIMARY KEY NOT NULL, ' +
-  //     'state INTEGER NOT NULL, ' +
-  //     'city TEXT, ' +
-  //     'neighborhood TEXT, ' +
-  //     'zip TEXT ); ',
-  //   [],
-  //   successCB,
-  //   errorCB,
-  // );
-  // tx.executeSql(
-  //   `INSERT INTO Addresses (state, city, neighborhood, zip) VALUES ${values} ;`,
-  //   inserts,
-  //   successCB,
-  //   errorCB,
-  // );
+  console.time('sql done');
+  tx.executeSql('DROP TABLE addresses', [], successCB, errorCB);
+  tx.executeSql(
+    'CREATE TABLE IF NOT EXISTS addresses( ' +
+      'id INTEGER PRIMARY KEY NOT NULL, ' +
+      'state INTEGER NOT NULL, ' +
+      'city TEXT, ' +
+      'neighborhood TEXT, ' +
+      'zip TEXT ); ',
+    [],
+    successCB,
+    errorCB,
+  );
+  tx.executeSql(
+    `INSERT INTO Addresses (state, city, neighborhood, zip) VALUES ${values} ;`,
+    inserts,
+    successCB,
+    errorCB,
+  );
   tx.executeSql('SELECT * FROM addresses', [], successCB, errorCB);
 });
 
+// let states = [];
+// if (result.length > 1) {
+//   console.time('Filtering states in');
+//   const filteredStates = [...new Set(result.map((el) => el.State))];
+//   states = filteredStates
+//      .sort()
+//      .map((state) => ({ key: state, value: state }));
+//   console.timeEnd('Filtering states in');
+// }
+//
+// let cities = [];
+// if (selectedState) {
+//   console.time('Filtering cities in');
+//   const filteredCities = [
+//     ...new Set(
+//        result.filter((el) => el.State === selectedState).map((el) => el.City)
+//     ),
+//   ];
+//   cities = filteredCities.sort().map((city) => ({ key: city, value: city }));
+//   console.timeEnd('Filtering cities in');
+// }
+//
+// let neighborhoods = [];
+// if (selectedCity) {
+//   console.time('Filtering neighborhoods in');
+//   const filteredNeighborhoods = [
+//     ...new Set(
+//        result.filter((el) => el.City === selectedCity).map((el) => el.County)
+//     ),
+//   ];
+//   neighborhoods = filteredNeighborhoods
+//      .sort()
+//      .map((neighbor) => ({ key: neighbor, value: neighbor }));
+//   console.timeEnd('Filtering neighborhoods in');
+// }
+
 const App: () => React$Node = () => {
+  const {result, percent} = useData();
+
+  if (result.length > 1) {
+    console.log('Items', result.length);
+    // handle to save to db
+    console.time('Filtering states in');
+    const filteredStates = [...new Set(result.map((el) => el.State))];
+    const states = filteredStates
+      .sort()
+      .map((state) => ({key: state, value: state}));
+    console.log(states);
+    console.timeEnd('Filtering states in');
+  }
+
   return (
     <>
       <StatusBar barStyle="dark-content" />
-      <SafeAreaView>
-        <Text>Test</Text>
+      <SafeAreaView styles={styles.container}>
+        <Text>Downloading data {Math.round(percent * 100)}</Text>
       </SafeAreaView>
     </>
   );
 };
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 export default App;
