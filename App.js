@@ -6,7 +6,7 @@
  * @flow strict-local
  */
 
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   SafeAreaView,
   StyleSheet,
@@ -27,15 +27,6 @@ const errorCB = (err) => {
   console.log('SQL Error:', err);
 };
 
-const successCB = (tx, result) => {
-  console.timeEnd('sql done');
-  console.log('SQL executed fine', result.rows.length);
-  // const {rows} = result;
-  // for (let i = 0; i < rows.length; i++) {
-  //   console.log(rows.item(i));
-  // }
-};
-
 const openCB = () => {
   console.log('Database OPENED');
 };
@@ -45,42 +36,6 @@ const db = SQLite.openDatabase(
   openCB,
   errorCB,
 );
-
-// dummy data
-const total = 100000;
-let values = '';
-let inserts = [];
-
-for (let i = 0; i < total; i++) {
-  values += `(?,?,?,?)${i + 1 === total ? '' : ','} `;
-  inserts.push(`state ${i}`);
-  inserts.push(`city ${i}`);
-  inserts.push(`neigh ${i}`);
-  inserts.push(`zip ${i}`);
-}
-
-db.transaction((tx) => {
-  console.time('sql done');
-  // tx.executeSql('DROP TABLE addresses', [], successCB, errorCB);
-  // tx.executeSql(
-  //   'CREATE TABLE IF NOT EXISTS addresses( ' +
-  //     'id INTEGER PRIMARY KEY NOT NULL, ' +
-  //     'state INTEGER NOT NULL, ' +
-  //     'city TEXT, ' +
-  //     'neighborhood TEXT, ' +
-  //     'zip TEXT ); ',
-  //   [],
-  //   successCB,
-  //   errorCB,
-  // );
-  // tx.executeSql(
-  //   `INSERT INTO Addresses (state, city, neighborhood, zip) VALUES ${values} ;`,
-  //   inserts,
-  //   successCB,
-  //   errorCB,
-  // );
-  tx.executeSql('SELECT * FROM addresses', [], successCB, errorCB);
-});
 
 // let states = [];
 // if (result.length > 1) {
@@ -120,28 +75,138 @@ db.transaction((tx) => {
 
 const App: () => React$Node = () => {
   const {result, percent} = useData();
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [county, setCounty] = useState([]);
 
-  if (result.length > 1) {
-    console.log('Items', result.length);
-    // handle to save to db
-    console.time('Filtering states in');
-    const filteredStates = [...new Set(result.map((el) => el.State))];
-    const states = filteredStates
-      .sort()
-      .map((state) => ({key: state, value: state}));
-    console.log(states);
-    console.timeEnd('Filtering states in');
-  }
+  useEffect(() => {
+    if (result.length > 1) insertDataToDB(result);
+  }, [result]);
+
+  const insertDataToDB = (data) => {
+    let values = '';
+    let endStatement = ',';
+
+    //real data
+    for (let i = 0; i < data.length; i++) {
+      if (i + 1 === data.length) endStatement = '';
+      values += `('${data[i].State}', '${data[i].City}', '${data[i].County}', '${data[i].PostalCode}')${endStatement}`;
+    }
+
+    db.transaction((tx) => {
+      console.time('sql insert rows');
+
+      tx.executeSql('DROP TABLE IF EXISTS addresses', [], () => {}, errorCB);
+      tx.executeSql(
+        'CREATE TABLE IF NOT EXISTS addresses( ' +
+          'id INTEGER PRIMARY KEY NOT NULL, ' +
+          'state TEXT, ' +
+          'city TEXT, ' +
+          'county TEXT, ' +
+          'zip TEXT ); ',
+        [],
+        () => {},
+        errorCB,
+      );
+      tx.executeSql(
+        `INSERT INTO addresses (state, city, county, zip) VALUES ${values}`,
+        [],
+
+        successInsertRows,
+        errorCB,
+      );
+    });
+  };
+
+  const successInsertRows = (tx, result) => {
+    console.timeEnd('sql insert rows');
+    console.log('SQL executed fine', result.rows.length);
+
+    console.time('sql select query');
+
+    tx.executeSql(
+      'SELECT distinct state FROM addresses',
+      [],
+      (tx, result) => {
+        setDataToSelect(result, setStates, 'state');
+      },
+      errorCB,
+    );
+  };
+
+  const _handleStateChange = (val) => {
+    setCities([]);
+    setCounty([]);
+
+    db.transaction((tx) => {
+      console.time('sql select query');
+
+      tx.executeSql(
+        `SELECT distinct city FROM addresses where state = '${val}'`,
+        [],
+        (tx, result) => {
+          setDataToSelect(result, setCities, 'city');
+        },
+        errorCB,
+      );
+    });
+  };
+
+  const _handleCitiesChange = (val) => {
+    setCounty([]);
+
+    db.transaction((tx) => {
+      console.time('sql select query');
+
+      tx.executeSql(
+        `SELECT distinct county FROM addresses where city = '${val}'`,
+        [],
+        (tx, result) => {
+          setDataToSelect(result, setCounty, 'county');
+        },
+        errorCB,
+      );
+    });
+  };
+
+  const _handleCountyChange = (val) => {
+    console.log(val);
+  };
+
+  const setDataToSelect = (result, setData, prop) => {
+    let data = [];
+    const {rows} = result;
+
+    for (let i = 0; i < rows.length; i++) {
+      data.push(rows.item(i)[prop]);
+    }
+
+    data = data.sort().map((el) => ({key: el, value: el}));
+    setData(data);
+
+    console.timeEnd('sql select query');
+  };
+
+  // if (result.length > 1) {
+  //   console.log('Items', result.length);
+  //   // handle to save to db
+  //   console.time('Filtering states in');
+  //   const filteredStates = [...new Set(result.map((el) => el.State))];
+  //   const states = filteredStates
+  //     .sort()
+  //     .map((state) => ({key: state, value: state}));
+  //   console.log(states);∫
+  //   console.timeEnd('Filtering states in');
+  // }
 
   return (
     <>
       <StatusBar barStyle="dark-content" />
       <SafeAreaView styles={styles.container}>
         <Text>Downloading data {Math.round(percent * 100)}</Text>
-        <Select
-          data={[{key: 'key', value: 'value'}]}
-          onSelected={(val) => console.log(val)}
-        />
+        <Select data={states} onSelected={_handleStateChange} />
+        <Select data={cities} onSelected={_handleCitiesChange} />
+        <Select data={county} onSelected={_handleCountyChange} />
       </SafeAreaView>
     </>
   );
