@@ -44,6 +44,9 @@ const App: () => React$Node = () => {
   const [cities, setCities] = useState([]);
   const [county, setCounty] = useState([]);
 
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
+
   useEffect(() => {
     if (result.length > 1) {
       insertDataToDB(result);
@@ -107,6 +110,9 @@ const App: () => React$Node = () => {
     setCities([]);
     setCounty([]);
 
+    setSelectedCity('');
+    setSelectedState(val);
+
     db.transaction((tx) => {
       console.time('sql select query');
 
@@ -124,11 +130,13 @@ const App: () => React$Node = () => {
   const _handleCitiesChange = (val) => {
     setCounty([]);
 
+    setSelectedCity(val);
+
     db.transaction((tx) => {
       console.time('sql select query');
 
       tx.executeSql(
-        `SELECT distinct county FROM addresses where city = '${val}'`,
+        `SELECT distinct county FROM addresses where state = '${selectedState}' and city = '${val}'`,
         [],
         (tx, result) => {
           setDataToSelect(result, setCounty, 'county');
@@ -144,10 +152,10 @@ const App: () => React$Node = () => {
       await db.transaction((tx) => {
         /* quedon chingon solo hay que especificar la colonia aqui por que hay muchas duplicadas
         por ejemplo aguascalientes / cosio / el durazno. regresa varios zip supongo que agregandole un AND county...
-         o quizas hasta también la ciudad para que no haya pedos como vez? */
+         o quizas hasta también la ciudad para que no haya pedos como vez? SIMON*/
 
         tx.executeSql(
-          `SELECT distinct zip FROM addresses where county = '${val}'`,
+          `SELECT distinct zip FROM addresses where state = '${selectedState}' and city = '${selectedCity}' and county = '${val}'`,
           [],
           (t, res) => {
             const {rows} = res;
