@@ -14,6 +14,7 @@ import {
   View,
   Text,
   StatusBar,
+  TextInput,
 } from 'react-native';
 
 import SQLite from 'react-native-sqlite-storage';
@@ -32,46 +33,10 @@ const openCB = () => {
 };
 
 const db = SQLite.openDatabase(
-  {name: 'my.db', location: 'default'},
+  {name: 'addresses.db', location: 'default'},
   openCB,
   errorCB,
 );
-
-// let states = [];
-// if (result.length > 1) {
-//   console.time('Filtering states in');
-//   const filteredStates = [...new Set(result.map((el) => el.State))];
-//   states = filteredStates
-//      .sort()
-//      .map((state) => ({ key: state, value: state }));
-//   console.timeEnd('Filtering states in');
-// }
-//
-// let cities = [];
-// if (selectedState) {
-//   console.time('Filtering cities in');
-//   const filteredCities = [
-//     ...new Set(
-//        result.filter((el) => el.State === selectedState).map((el) => el.City)
-//     ),
-//   ];
-//   cities = filteredCities.sort().map((city) => ({ key: city, value: city }));
-//   console.timeEnd('Filtering cities in');
-// }
-//
-// let neighborhoods = [];
-// if (selectedCity) {
-//   console.time('Filtering neighborhoods in');
-//   const filteredNeighborhoods = [
-//     ...new Set(
-//        result.filter((el) => el.City === selectedCity).map((el) => el.County)
-//     ),
-//   ];
-//   neighborhoods = filteredNeighborhoods
-//      .sort()
-//      .map((neighbor) => ({ key: neighbor, value: neighbor }));
-//   console.timeEnd('Filtering neighborhoods in');
-// }
 
 const App: () => React$Node = () => {
   const {result, percent} = useData();
@@ -80,7 +45,9 @@ const App: () => React$Node = () => {
   const [county, setCounty] = useState([]);
 
   useEffect(() => {
-    if (result.length > 1) insertDataToDB(result);
+    if (result.length > 1) {
+      insertDataToDB(result);
+    }
   }, [result]);
 
   const insertDataToDB = (data) => {
@@ -89,7 +56,9 @@ const App: () => React$Node = () => {
 
     //real data
     for (let i = 0; i < data.length; i++) {
-      if (i + 1 === data.length) endStatement = '';
+      if (i + 1 === data.length) {
+        endStatement = '';
+      }
       values += `('${data[i].State}', '${data[i].City}', '${data[i].County}', '${data[i].PostalCode}')${endStatement}`;
     }
 
@@ -169,8 +138,28 @@ const App: () => React$Node = () => {
     });
   };
 
-  const _handleCountyChange = (val) => {
+  const _handleCountyChange = async (val) => {
     console.log(val);
+    console.log(
+      await db.transaction((tx) => {
+        /* quedon chingon solo hay que especificar la colonia aqui por que hay muchas duplicadas
+        por ejemplo aguascalientes / cosio / el durazno. regresa varios zip supongo que agregandole un AND county...
+         o quizas hasta también la ciudad para que no haya pedos como vez? */
+
+        tx.executeSql(
+          `SELECT distinct zip FROM addresses where county = '${val}'`,
+          [],
+          (t, res) => {
+            const {rows} = res;
+
+            for (let i = 0; i < rows.length; i++) {
+              console.log(rows.item(i));
+            }
+          },
+          errorCB,
+        );
+      }),
+    );
   };
 
   const setDataToSelect = (result, setData, prop) => {
@@ -187,18 +176,6 @@ const App: () => React$Node = () => {
     console.timeEnd('sql select query');
   };
 
-  // if (result.length > 1) {
-  //   console.log('Items', result.length);
-  //   // handle to save to db
-  //   console.time('Filtering states in');
-  //   const filteredStates = [...new Set(result.map((el) => el.State))];
-  //   const states = filteredStates
-  //     .sort()
-  //     .map((state) => ({key: state, value: state}));
-  //   console.log(states);∫
-  //   console.timeEnd('Filtering states in');
-  // }
-
   return (
     <>
       <StatusBar barStyle="dark-content" />
@@ -207,6 +184,11 @@ const App: () => React$Node = () => {
         <Select data={states} onSelected={_handleStateChange} />
         <Select data={cities} onSelected={_handleCitiesChange} />
         <Select data={county} onSelected={_handleCountyChange} />
+        <TextInput
+          style={styles.textInput}
+          placeholder="Zip"
+          placeholderTextColor="silver"
+        />
       </SafeAreaView>
     </>
   );
@@ -217,6 +199,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#acacac',
+    marginHorizontal: 10,
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 7,
   },
 });
 
